@@ -1,0 +1,128 @@
+using System;
+using System.Windows.Forms;
+using System.Data.SqlClient;
+using System.Data;
+
+
+
+namespace WindowsFormsApp12
+{
+    public partial class Form1 : Form
+    {
+        public Form1()
+        {
+            InitializeComponent();
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            ftxt.Text = "123456";
+            txtamount.Text = "1000 ";
+        }
+        SqlConnection con = new SqlConnection(@"Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=C:\Users\Dell\source\repos\WindowsFormsApp12\WindowsFormsApp12\BankDataBase.mdf;Integrated Security=True");
+
+        public string Totd { get; private set; }
+       
+        private void button1_Click(object sender, EventArgs e)
+        {
+            string fromaccountno, toaccountno, date;
+            double balance;
+
+            fromaccountno = ftxt.Text;
+            toaccountno = totxt.Text;
+            date = txtdate.Text;
+            balance = double.Parse(txtamount.Text);
+
+            con.Open();
+
+            SqlCommand cmd = new SqlCommand();
+            SqlTransaction transaction;
+            transaction = con.BeginTransaction();
+            cmd.Connection = con;
+            cmd.Transaction = transaction;
+
+            try
+            {
+                string str = "select * from Account where AccountNumber = ' " + ftxt.Text + " ' ";
+                SqlCommand cmd2 = new SqlCommand(str, con);
+                cmd2.Transaction = transaction;
+                SqlDataReader rd = cmd2.ExecuteReader();
+                int Totd=0;
+
+                while (rd.Read())
+                {
+                    Totd = Convert.ToInt32(rd[3]);
+                }
+                con.Close();
+              
+                if (Totd <= 1000)
+                {
+                    MessageBox.Show("Insufficient Balance for Transaction");
+                    transaction.Commit();
+                    con.Close();
+                }
+                
+                else
+                {
+                    
+                    con.Open();
+                    transaction = con.BeginTransaction();
+                    cmd.Transaction = transaction;
+
+                    cmd.CommandText = "update Account set Balance = Balance - ' " + balance + " ' where AccountNumber = ' " + fromaccountno + " ' ";
+                    cmd.ExecuteNonQuery();
+
+                    cmd.CommandText = "update Account set Balance = Balance + ' " + balance + " ' where AccountNumber = '  " + toaccountno + " ' ";
+                    cmd.ExecuteNonQuery();
+
+
+                    cmd.CommandText = "insert into Transactions(f_acc,to_acc,date,amount) values(' " + fromaccountno + " ' , ' " + toaccountno + " ' , ' " + date + " ' , ' " + balance + " ')";
+                    cmd.ExecuteNonQuery();
+
+      
+                    transaction.Commit();
+                    MessageBox.Show("Transaction Successfull");
+                    
+                }
+            }
+
+
+            catch (Exception ex)
+            {
+                transaction.Rollback();
+                MessageBox.Show(ex.ToString());
+
+            }
+            finally
+            {
+                con.Close();
+            }
+        }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+            con.Open();
+            string str = "select * from Account where AccountNumber = ' " + ftxt.Text + " ' ";
+            SqlCommand cmd1 = new SqlCommand(str, con);
+
+            SqlDataReader rd = cmd1.ExecuteReader();
+
+            while (rd.Read())
+            {
+                finalbalance.Text = rd[3].ToString();
+            }
+            
+            con.Close();
+
+            con.Open();
+            SqlDataAdapter sqlDa = new SqlDataAdapter("select top 5 * from Transactions order by tf_id desc;", con);
+            DataTable dtbl = new DataTable();
+            sqlDa.Fill(dtbl);
+
+            dataGridView1.DataSource = dtbl;
+
+            
+            con.Close();
+        }
+    }
+}
